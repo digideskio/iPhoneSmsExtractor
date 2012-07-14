@@ -31,7 +31,6 @@ namespace iPhoneSmsExtractor
             var fullPathToDb = Path.Combine(Path.Combine(topLevelFolderPath, myBackup), smsDbFileName);
             var connectionString = string.Format("Data Source={0}", fullPathToDb);
 
-            //var groupDiscoverySql = @"SELECT address FROM group_member";
             var contactDiscoverySql = @"SELECT DISTINCT COALESCE(madrid_handle, '') || COALESCE(address, '') AS contact FROM message";
 
             var contacts = new List<string>();
