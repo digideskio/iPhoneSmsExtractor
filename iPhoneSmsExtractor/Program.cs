@@ -22,10 +22,10 @@ namespace iPhoneSmsExtractor
             for(int i = 0; i < backups.Length; i++)
             {
                 var lastWriteTime = Directory.GetLastWriteTime(backups[i]);
-                Console.WriteLine("  {0}. {1}", i, lastWriteTime);
+                Console.WriteLine("  {0}. {1}", i + 1, lastWriteTime);
             }
 
-            var choice = int.Parse(Console.ReadLine());
+            var choice = int.Parse(Console.ReadLine()) - 1;
             var myBackup = backups[choice];
 
             var fullPathToDb = Path.Combine(Path.Combine(topLevelFolderPath, myBackup), smsDbFileName);
@@ -57,6 +57,9 @@ namespace iPhoneSmsExtractor
 
             var contactAddress = int.Parse(Console.ReadLine()) - 1;
             var contact = contacts[contactAddress];
+
+            Console.WriteLine("Enter your timezone offset from UTC:");
+            var utcOffset = int.Parse(Console.ReadLine());
             
             var sql = string.Format(@"SELECT * FROM message WHERE madrid_handle LIKE '%{0}%' OR address LIKE '%{0}%'", contact);
 
@@ -105,14 +108,14 @@ namespace iPhoneSmsExtractor
                             var address = reader["address"].ToString();
                             if (!string.IsNullOrEmpty(address))
                             {
-                                var baseDate = new DateTime(1970, 1, 1, 0, 0, 0);
-                                var messageTimestamp = baseDate.AddSeconds(reader.GetInt64(2));
+                                var baseDate = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                                var messageTimestamp = baseDate.AddSeconds(reader.GetInt64(2)).AddHours(utcOffset);
                                 writer.Write(messageTimestamp.ToString());
                             }
                             else
                             {
                                 var baseDate = new DateTime(2001, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-                                var messageTimestamp = baseDate.AddSeconds(reader.GetInt64(2));
+                                var messageTimestamp = baseDate.AddSeconds(reader.GetInt64(2)).AddHours(utcOffset);
                                 writer.Write(messageTimestamp.ToString());
                             }
 
