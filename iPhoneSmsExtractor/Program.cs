@@ -31,7 +31,8 @@ namespace iPhoneSmsExtractor
             var fullPathToDb = Path.Combine(Path.Combine(topLevelFolderPath, myBackup), smsDbFileName);
             var connectionString = string.Format("Data Source={0}", fullPathToDb);
 
-            var groupDiscoverySql = @"SELECT address FROM group_member";
+            //var groupDiscoverySql = @"SELECT address FROM group_member";
+            var contactDiscoverySql = @"SELECT DISTINCT COALESCE(madrid_handle, '') || COALESCE(address, '') AS contact FROM message";
 
             var contacts = new List<string>();
             Console.WriteLine("Choose from available contacts:");
@@ -40,14 +41,14 @@ namespace iPhoneSmsExtractor
                 connection.Open();
 
                 var contactIndex = 0;
-                
-                using (var command = new SQLiteCommand(groupDiscoverySql, connection))
+
+                using (var command = new SQLiteCommand(contactDiscoverySql, connection))
                 using (var reader = command.ExecuteReader())
                 {
                     while (reader.Read())
                     {
-                        Console.WriteLine("  {0}. {1}", contactIndex + 1, reader["address"]);
-                        contacts.Add(reader["address"] as string);
+                        Console.WriteLine("  {0}. {1}", contactIndex + 1, reader["contact"]);
+                        contacts.Add(reader["contact"] as string);
                         contactIndex++;
                     }
                 }
@@ -61,6 +62,9 @@ namespace iPhoneSmsExtractor
             var sql = string.Format(@"SELECT * FROM message WHERE madrid_handle LIKE '%{0}%' OR address LIKE '%{0}%'", contact);
 
             var outputFilePath = @"sms.html";
+
+            if (File.Exists(outputFilePath))
+                File.Delete(outputFilePath);
 
             using(var stream = File.OpenWrite(outputFilePath))
             using (var writer = new StreamWriter(stream))
