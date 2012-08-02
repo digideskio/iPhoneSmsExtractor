@@ -71,7 +71,11 @@ namespace iPhoneSmsExtractor
             using(var stream = File.OpenWrite(outputFilePath))
             using (var writer = new StreamWriter(stream))
             {
-                writer.WriteLine("<HEAD>");
+                writer.WriteLine("<HTML>");
+                writer.WriteLine("  <HEAD>");
+                writer.WriteLine("    <META CHARSET=\"utf-8\" />");
+                writer.WriteLine("    <TITLE>SMS and iMessages</TITLE>");
+                writer.WriteLine("  </HEAD>");
                 writer.WriteLine("  <BODY>");
                 writer.WriteLine("    <TABLE>");
                 writer.WriteLine("      <TR>");
@@ -132,7 +136,7 @@ namespace iPhoneSmsExtractor
 
                 writer.WriteLine("    </TABLE>");
                 writer.WriteLine("  </BODY>");
-                writer.WriteLine("</HEAD>");
+                writer.WriteLine("</HTML>");
             }
             Console.WriteLine("All done!");
             Console.ReadLine();
