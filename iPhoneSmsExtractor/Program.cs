@@ -11,7 +11,7 @@ namespace iPhoneSmsExtractor
     {
         const string smsDbFileName = @"3d0d7e5fb2ce288813306e4d4636395e047a3d28";
         const string topLevelFolderFormat = @"c:\users\{0}\AppData\Roaming\Apple Computer\MobileSync\Backup\";
-        
+
         static void Main(string[] args)
         {
             var topLevelFolderPath = string.Format(topLevelFolderFormat, Environment.UserName);
@@ -19,7 +19,7 @@ namespace iPhoneSmsExtractor
             var backups = Directory.GetDirectories(topLevelFolderPath);
 
             Console.WriteLine("Choose your backup:");
-            for(int i = 0; i < backups.Length; i++)
+            for (int i = 0; i < backups.Length; i++)
             {
                 var lastWriteTime = Directory.GetLastWriteTime(backups[i]);
                 Console.WriteLine("  {0}. {1}", i + 1, lastWriteTime);
@@ -29,46 +29,16 @@ namespace iPhoneSmsExtractor
             var myBackup = backups[choice];
 
             var fullPathToDb = Path.Combine(Path.Combine(topLevelFolderPath, myBackup), smsDbFileName);
-            var connectionString = string.Format("Data Source={0}", fullPathToDb);
-
-            var contactDiscoverySql = @"SELECT DISTINCT COALESCE(madrid_handle, '') || COALESCE(address, '') AS contact FROM message";
-
-            var contacts = new List<string>();
-            Console.WriteLine("Choose from available contacts:");
-            using (var connection = new SQLiteConnection(connectionString))
-            {
-                connection.Open();
-
-                var contactIndex = 0;
-
-                using (var command = new SQLiteCommand(contactDiscoverySql, connection))
-                using (var reader = command.ExecuteReader())
-                {
-                    while (reader.Read())
-                    {
-                        Console.WriteLine("  {0}. {1}", contactIndex + 1, reader["contact"]);
-                        contacts.Add(reader["contact"] as string);
-                        contactIndex++;
-                    }
-                }
-
-                connection.Close();
-            }
-
-            var contactAddress = int.Parse(Console.ReadLine()) - 1;
-            var contact = contacts[contactAddress];
-
+            
             Console.WriteLine("Enter your timezone offset from UTC:");
             var utcOffset = int.Parse(Console.ReadLine());
-            
-            var sql = string.Format(@"SELECT * FROM message WHERE madrid_handle LIKE '%{0}%' OR address LIKE '%{0}%'", contact);
 
             var outputFilePath = @"sms.html";
 
             if (File.Exists(outputFilePath))
                 File.Delete(outputFilePath);
 
-            using(var stream = File.OpenWrite(outputFilePath))
+            using (var stream = File.OpenWrite(outputFilePath))
             using (var writer = new StreamWriter(stream))
             {
                 writer.WriteLine("<HTML>");
@@ -84,54 +54,27 @@ namespace iPhoneSmsExtractor
                 writer.WriteLine("        <TH>Message</TH>");
                 writer.WriteLine("      </TR>");
 
-                using (var connection = new SQLiteConnection(connectionString))
+                using (var database = new DatabaseAccess(fullPathToDb))
                 {
-                    connection.Open();
+                    database.Open();
 
-                    using (var command = new SQLiteCommand(sql, connection))
-                    using (var reader = command.ExecuteReader())
+                    Console.WriteLine("Choose from available contacts:");
+                    var contacts = database.GetContacts();
+                    contacts.ForEach(i => Console.WriteLine("  {0}. {1}", contacts.IndexOf(i) + 1, i));
+                    var contactAddress = int.Parse(Console.ReadLine()) - 1;
+                    var contact = contacts[contactAddress];
+                    
+                    var messages = database.GetMessages(contact, utcOffset);
+
+                    foreach (var message in messages)
                     {
-                        while (reader.Read())
-                        {
-                            writer.WriteLine("      <TR>");
+                        writer.WriteLine("      <TR>");
+                        writer.WriteLine("        <TD>" + (message.Sent ? "Sent" : "Received") + "</TD>");
+                        writer.WriteLine("        <TD>" + message.Timestamp.ToString() + "</TD>");
+                        writer.WriteLine("        <TD>" + message.Text + "</TD>");
+                        writer.WriteLine("      </TR>");
 
-                            if (reader["madrid_flags"].ToString() == "36869" || reader["madrid_flags"].ToString() == "102405" || reader["flags"].ToString().Contains("3"))
-                            {
-                                writer.WriteLine("        <TD>Sent</TD>");
-                            }
-                            else if (reader["madrid_flags"].ToString() == "12289" || reader["madrid_flags"].ToString() == "77825" || reader["flags"].ToString() == "2")
-                            {
-                                writer.WriteLine("        <TD>Received</TD>");
-                            }
-                            else
-                            {
-                                writer.WriteLine("        <TD>***** " + reader["madrid_flags"] + " / " + reader["flags"] + "</TD>");
-                            }
-
-                            writer.Write("        <TD>");
-                            var address = reader["address"].ToString();
-                            if (!string.IsNullOrEmpty(address))
-                            {
-                                var baseDate = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-                                var messageTimestamp = baseDate.AddSeconds(reader.GetInt64(2)).AddHours(utcOffset);
-                                writer.Write(messageTimestamp.ToString());
-                            }
-                            else
-                            {
-                                var baseDate = new DateTime(2001, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-                                var messageTimestamp = baseDate.AddSeconds(reader.GetInt64(2)).AddHours(utcOffset);
-                                writer.Write(messageTimestamp.ToString());
-                            }
-
-                            writer.WriteLine("</TD>");
-                            
-                            writer.WriteLine("        <TD>" + reader["text"] + "</TD>");
-                            
-                            writer.WriteLine("      </TR>");
-                        }
                     }
-
-                    connection.Close();
                 }
 
                 writer.WriteLine("    </TABLE>");
